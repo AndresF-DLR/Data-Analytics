@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul 31 13:40:15 2018
-@author: riosa
+Updated on Tue Aug 14 16:08:22 2018
+
+@author: AndresF-DLR
 """
 
 #To Do:
-#Use tags at the bottom of main page as categories? Figure out how to collect them as well as the URL_Categories
+#Use tags at the bottom of main page/side of each section as sub-topics? Figure out how to collect them as well as the URL_Categories
 #Maybe create a separate function (or include into simple_get()) for creating the BeautifulSoup HTML content?
 
 #Data Viz. / Study Ideas: 
@@ -38,7 +39,7 @@ URL_categories = ["philosophy-books","history", "fiction", "politics-and-society
                 "art-design-and-architecture", "best-kids-books", "world-and-travel", "mind-psychology", "health-and-lifestyle", "nature-and-environment", \
                 "technology", "food-and-cooking", "literary-nonfiction-and-biography", "music-and-drama", "religion", "sports-games-and-hobbies"]
 
-#URL_categories = ["philosophy-books", "history"]
+#URL_categories = ["history"]
 
 def simple_get(url):
     """
@@ -78,9 +79,11 @@ def collect(bs_html, D, category):
     
     page_sections = bs_html.find_all("article", class_ = "infinite-item archive-interview")
         
-    titles = []
+    article_titles = []
     
     subjects = []
+    
+    referrers = []
     
     title_subject_counter = -1
     
@@ -88,11 +91,37 @@ def collect(bs_html, D, category):
         
         section_title = section.find("h2").get_text()
         
+        article_titles.append(section_title)
+        
         section_subject = section.find("span", class_ = "subject").get_text()
         
-        titles.append(section_title)
-        
         subjects.append(section_subject)
+        
+        dissected_title = section_title.split()
+        
+        if "by" in dissected_title:
+            
+           i = dissected_title.index("by")
+                
+           referrer = lambda x: x[i + 1:]
+                
+           section_referrer = " ".join(referrer(dissected_title))
+                      
+        elif dissected_title[1][0].isupper() or dissected_title[2][0].isupper():
+            
+            section_referrer = dissected_title[:2]
+            
+            if dissected_title[2][0].isupper():
+               
+                section_referrer = dissected_title[:3]
+                
+            section_referrer = " ".join(section_referrer)
+            
+        else:
+            section_referrer = "N/A"
+        
+        referrers.append(section_referrer)
+            
     
     page_books = bs_html.find_all("li", class_ = (["single-book small-20-6 columns ", "single-book small-4 columns "]))    
     
@@ -114,18 +143,10 @@ def collect(bs_html, D, category):
         if ("," or "&") in book_author and ("translated and abridged") not in book_author:
             book_author = re.split(', | &', book_author)
         
-#            book_author = book_author.split(",")
-#            print(book_author)
-            
-#        elif "&" in book_author:
-#            book_author = book_author.split("&")
-        
-        book_article, book_subject = titles[title_subject_counter], subjects[title_subject_counter]
+        book_article, book_subject, book_referrer = article_titles[title_subject_counter], subjects[title_subject_counter], referrers[title_subject_counter]
         
         if book_title in D:
-#            D[book_title]["Subject"].append(book_subject)
-#            D[book_title]["Article(s)"].append(book_article)
-#            
+            
             #Controls for books in articles that have been tagged as multiple categories
             if category not in D[book_title]["Category"]:
                 D[book_title]["Category"].append(category)
@@ -135,9 +156,13 @@ def collect(bs_html, D, category):
                 
             if book_article not in D[book_title]["Article(s)"]:
                 D[book_title]["Article(s)"].append(book_article)
+                
+            if book_referrer not in D[book_title]["Referrer(s)"]:
+                D[book_title]["Referrer(s)"].append(book_referrer)
+            
             
         else:
-            D[book_title] = {"Author(s)": [], "Subject": [book_subject], "Article(s)": [book_article], "Category": [category]}
+            D[book_title] = {"Author(s)": [], "Subject": [book_subject], "Article(s)": [book_article], "Category": [category], "Referrer(s)": [book_referrer]}
             
             if type(book_author) == list:
                 for author in book_author:
@@ -182,5 +207,3 @@ if __name__ == '__main__':
     book_dictionary = {}
     
     FiveBooksParser(book_dictionary)
-                    
-        
