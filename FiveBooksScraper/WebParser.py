@@ -6,7 +6,8 @@ Updated on Tue Aug 14 16:08:22 2018
 """
 
 #To Do:
-#Use tags at the bottom of main page/side of each section as sub-topics? Figure out how to collect them as well as the URL_Categories
+#Figure out how to collet URL_Categories
+#Optional scraper for reader-lists - optional dictionary trait?
 #Maybe create a separate function (or include into simple_get()) for creating the BeautifulSoup HTML content?
 
 #Data Viz. / Study Ideas: 
@@ -35,11 +36,11 @@ import re
 URL = "https://fivebooks.com/category/"
 
 #This is for the not-so-automatic scrape...
-URL_categories = ["philosophy-books","history", "fiction", "politics-and-society", "mathematics-and-science", "economics-business-and-investing", \
-                "art-design-and-architecture", "best-kids-books", "world-and-travel", "mind-psychology", "health-and-lifestyle", "nature-and-environment", \
-                "technology", "food-and-cooking", "literary-nonfiction-and-biography", "music-and-drama", "religion", "sports-games-and-hobbies"]
+#URL_categories = ["philosophy-books","history", "fiction", "politics-and-society", "mathematics-and-science", "economics-business-and-investing", \
+#                "art-design-and-architecture", "best-kids-books", "world-and-travel", "mind-psychology", "health-and-lifestyle", "nature-and-environment", \
+#                "technology", "food-and-cooking", "literary-nonfiction-and-biography", "music-and-drama", "religion", "sports-games-and-hobbies"]
 
-#URL_categories = ["history"]
+URL_categories = ["history"]
 
 def simple_get(url):
     """
@@ -75,26 +76,8 @@ def log_error(e):
     """
     print(e)
     
-def collect(bs_html, D, category):
+def collect(bs_html, D, category, subtopic=None):
  
-    """
-    Page Subtopics Scraper
-    #check if page has sub-topics - typically only the first page of each section has them
-    page_subtopics = bs_html.find("div", class_ = "related_topics")
-    
-    if page_subtopics:
-        suptopics = []
-        
-        page_subtopics = page_subtopics.find_all("a")
-        
-        for subtopic in page_subtopics:
-            a = subtopic.get_text()
-            subtopics.append(a)
-            
-        print(page_subtopics)
-        
-    """
-    
     #Divide page into each article's entry/row 
     page_sections = bs_html.find_all("article", class_ = "infinite-item archive-interview")
     
@@ -194,11 +177,18 @@ def collect(bs_html, D, category):
                 
             if book_referrer not in D[book_title]["Referrer(s)"]:
                 D[book_title]["Referrer(s)"].append(book_referrer)
+                
+            if subtopic != None and subtopic not in D[book_title]["Sub-Topics"]:
+                D[book_title]["Sub-Topics"].append(subtopic)
             
         #Append each books's whole entry into dictionary the first time it is mentioned    
         else:
-            D[book_title] = {"Author(s)": [], "Subject": [book_subject], "Article(s)": [book_article], "Category": [category], "Referrer(s)": [book_referrer]}
+            D[book_title] = {"Author(s)": [], "Subject": [book_subject], "Article(s)": [book_article], \
+                             "Category": [category], "Referrer(s)": [book_referrer], "Sub-Topics": []}
             
+            if subtopic:
+                 D[book_title]["Sub-Topics"].append(subtopic)
+                 
             """
             if category == "reader-lists":
                 D[book_title]["Reader Pick"]: True
@@ -214,6 +204,28 @@ def collect(bs_html, D, category):
             else:
                 D[book_title]["Author(s)"].append(book_author)
     
+    #Sub-Topic Scraper: check if page has sub-topics - typically only the first page of each section has them
+    page_subtopics = bs_html.find("div", class_ = "related_topics")
+   
+    if page_subtopics:
+        
+        #Initialize page's subtopic repository
+        subtopics = []
+        
+        #Obtain list of page's subtopic links 
+        page_subtopics = page_subtopics.find_all("a")
+        
+        #Obtain subtopic links and text and store into repository as (name, url)
+        for topic in page_subtopics:
+            subtopic = topic.get_text()
+            subtopic_url = topic.get("href")
+            subtopics.append((subtopic, subtopic_url))
+        
+        #Parse each subtopic's webpage's contents
+        for i in subtopics:
+            raw_html = simple_get(i[1])
+            html = BeautifulSoup(raw_html, 'html.parser')
+            collect(html, D, category, subtopic=i[0])
     
     #Check if the parser must collect information from a subsequent page in the category       
     try:
@@ -223,7 +235,10 @@ def collect(bs_html, D, category):
 
     #At the last page of the category, the parser found no link to a subsequent page
     except AttributeError:
-        print("Done with Category - " + category)
+        if subtopic:
+            print("Done with Subtopic - " + category + ": - " + subtopic)
+        else:
+            print("Done with Category - " + category)
         return None
     
 
