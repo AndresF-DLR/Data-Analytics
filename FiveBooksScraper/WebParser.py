@@ -144,20 +144,18 @@ def collect(bs_html, D, category, subtopic=None):
             title_subject_counter += 1
         
         #Book title and author are drawn from the same website division, divided by a \n character
-        book_title_and_author = book.find("h2").get_text()
-        book_title_and_author = book_title_and_author.split("\n")
+        book_title_and_author = book.find("h2").get_text().split("\n")
         
         #Isolate book title
         book_title = book_title_and_author[0].strip()
         
         #Isolate book author(s) taking into account "by " characters
-        book_author = book_title_and_author[1].strip()
-        book_author = book_author[3:]
-        
+        book_author = book_title_and_author[1].strip()[3:]
+      
         #Check if book has multiple authors by looking for " , " or "&" characters
         #Ignores names in entries with "translated and abridged" author description format (PENDING)
-        if ("," or "&") in book_author and ("translated and abridged") not in book_author:
-            book_author = re.split(', | &', book_author)
+        if (("and" in book_author) or ("," or "&" in book_author)) and ("translated and abridged") not in book_author:
+            book_author = re.split(" and |[,|&]", book_author)
         
         #Matches the book with it's respective article information (title, subject and referrer) through the counter updated by the data position
         book_article, book_subject, book_referrer = article_titles[title_subject_counter], subjects[title_subject_counter], referrers[title_subject_counter]
@@ -196,9 +194,8 @@ def collect(bs_html, D, category, subtopic=None):
             
             #For books with multiple authors: remove filler words and store each name independently
             if type(book_author) == list:
-                for author in book_author:
-                    if author not in ["None", "and"]:
-                        D[book_title]["Author(s)"].append(author)
+                connector_words = ["translated", "None", "and", 'abridged']
+                D[book_title]["Author(s)"].extend([a.strip() for a in book_author if a.strip() not in connector_words])
                         
             #For books with single authors: append the name to the book's dictionary entry  
             else:
